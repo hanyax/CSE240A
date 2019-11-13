@@ -1,0 +1,4 @@
+My custom predictor is a tournament predictor where the global part of prediction is based on a bi-mode prediction and the local part is a standard two-level predictor.
+
+The paper I used is: "The bi-mode branch predictor"
+https://ieeexplore.ieee.org/document/645792
