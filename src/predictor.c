@@ -69,14 +69,6 @@ For Custom
 //        Predictor Functions         //
 //------------------------------------//
 
-void binary_helper(unsigned number, int bit) {
-  for (int i = 0; i < bit; ++i) {
-    if (number >> i & 0x1) putchar('1');
-    else putchar('0');
-  }
-  putchar('\n');
-}
-
 // Initialize the predictor
 //
 void GSHARE_init() {
@@ -148,9 +140,6 @@ uint8_t make_prediction_TOURNAMENT(uint32_t pc) {
   uint32_t masked_ghr = ghr32_tournament & global_mask;
   uint8_t globel_prediction = GPT_tournament[masked_ghr];
   uint8_t choice_prediction = CPT_tournament[masked_ghr];
-
-  assert(choice_prediction>=0 && choice_prediction <= 3);
-  assert(globel_prediction>=0 && globel_prediction <= 3);
 
   // Get local prediction
   // find the index of LHT by masking PC
@@ -294,8 +283,31 @@ void decrease_global_prediction(int index) {
   }
 }
 
-void  train_predictor_TOURNAMENT(uint32_t pc, uint8_t outcome) {
-  //printf("Tournament Training...\n");
+void increase_choice_prediction(int index) {
+  if (CPT_tournament[index] == 0) {
+    CPT_tournament[index] = 1;
+  } else if (CPT_tournament[index] == 1) {
+    CPT_tournament[index] = 2;
+  } else if (CPT_tournament[index] == 2) {
+    CPT_tournament[index] = 3;
+  } else {
+    CPT_tournament[index] = 3;
+  }
+}
+
+void decrease_choice_prediction(int index) {
+  if (CPT_tournament[index] == 0) {
+    CPT_tournament[index] = 0;
+  } else if (CPT_tournament[index] == 1) {
+    CPT_tournament[index] = 0;
+  } else if (CPT_tournament[index] == 2) {
+    CPT_tournament[index] = 1;
+  } else {
+    CPT_tournament[index] = 2;
+  }
+}
+
+void train_predictor_TOURNAMENT(uint32_t pc, uint8_t outcome) {
   uint32_t global_mask = (1 << ghistoryBits) - 1;
   uint32_t masked_ghr = ghr32_tournament & global_mask;
   uint8_t globel_prediction = GPT_tournament[masked_ghr];
@@ -315,220 +327,69 @@ void  train_predictor_TOURNAMENT(uint32_t pc, uint8_t outcome) {
   ghr32_tournament = ghr32_tournament << 1; // shift global history by 1
   LHT_tournament[masked_pc] = LHT_tournament[masked_pc] << 1;
   // Index into BHT and update BHT
-  if (outcome == TAKEN) {
-    if (choice_prediction < 2) { // update global
-      if (globel_prediction == 0) { // predict wrong, increase choice table
-        GPT_tournament[masked_ghr] = 1;
-        increase_local_prediction(masked_LPT_index);
+  if (outcome == 1) {
+    increase_local_prediction(masked_LPT_index);
+    increase_global_prediction(masked_ghr);
 
-        if (choice_prediction == 0) {
-          CPT_tournament[masked_ghr] = 1;
-        } else if (choice_prediction == 1) {
-          CPT_tournament[masked_ghr] = 2;
-        } else {
-          printf("I am here, sth is wrong in choice prediction value\n");
+    if (choice_prediction < 2) { // predict global
+      if (globel_prediction < 2) { // predict wrong
+        if (local_prediction > 2) {
+          increase_choice_prediction(masked_ghr);
         }
-      } else if (globel_prediction == 1) { // predict wrong, increase choice table
-        GPT_tournament[masked_ghr] = 2;
-        increase_local_prediction(masked_LPT_index);
-
-        if (choice_prediction == 0) {
-          CPT_tournament[masked_ghr] = 1;
-        } else if (choice_prediction == 1) {
-          CPT_tournament[masked_ghr] = 2;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
+      } else { // predict right
+        if (local_prediction < 2) {
+          decrease_choice_prediction(masked_ghr);
         }
-      } else if (globel_prediction == 2) { // predict correct, decrease choice table
-        GPT_tournament[masked_ghr] = 3;
-        increase_local_prediction(masked_LPT_index);
-
-        if (choice_prediction == 0) {
-          CPT_tournament[masked_ghr] = 0;
-        } else if (choice_prediction == 1) {
-          CPT_tournament[masked_ghr] = 0;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
-        }
-      } else if (globel_prediction == 3) { // predict correct. decrease choice table
-        GPT_tournament[masked_ghr] = 3;
-        increase_local_prediction(masked_LPT_index);
-
-        if (choice_prediction == 0) {
-          CPT_tournament[masked_ghr] = 0;
-        } else if (choice_prediction == 1) {
-          CPT_tournament[masked_ghr] = 0;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
+      }
+    } else { // predict local
+      if (local_prediction < 2) { // predict wrong
+        if (globel_prediction > 2) {
+          decrease_choice_prediction(masked_ghr);
         }
       } else {
-        printf("sth is wrong with globel_prediction value\n");
+        if (globel_prediction < 2) {
+          increase_choice_prediction(masked_ghr);
+        }
       }
-    } else if (choice_prediction > 1) { // update local
-      //////////// update LPT //////////////
-      if (local_prediction == 0) { // predict wrong, decrease choice table
-        LPT_tournament[masked_LPT_index] = 1;
-        increase_global_prediction(masked_ghr);
-
-        if (choice_prediction == 2) {
-          CPT_tournament[masked_ghr] = 1;
-        } else if (choice_prediction == 3) {
-          CPT_tournament[masked_ghr] = 2;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
-        }
-      } else if (local_prediction == 1) { // predict wrong, decrease choice table
-        LPT_tournament[masked_LPT_index] = 2;
-        increase_global_prediction(masked_ghr);
-
-        if (choice_prediction == 2) {
-          CPT_tournament[masked_ghr] = 1;
-        } else if (choice_prediction == 3) {
-          CPT_tournament[masked_ghr] = 2;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
-        }
-      } else if (local_prediction == 2) { // predict right, increase choice table
-        LPT_tournament[masked_LPT_index] = 3;
-        increase_global_prediction(masked_ghr);
-
-        if (choice_prediction == 2) {
-          CPT_tournament[masked_ghr] = 3;
-        } else if (choice_prediction == 3) {
-          CPT_tournament[masked_ghr] = 3;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
-        }
-      } else if (local_prediction == 3) { // predict right, increase choice table
-        LPT_tournament[masked_LPT_index] = 3;
-        increase_global_prediction(masked_ghr);
-
-        if (choice_prediction == 2) {
-          CPT_tournament[masked_ghr] = 3;
-        } else if (choice_prediction == 3) {
-          CPT_tournament[masked_ghr] = 3;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
-        }
-      } else {
-        printf("sth is wrong with local_prediction value\n");
-      }
-    } else { //
-      printf("sth is wrong with choice_prediction value\n");
     }
+
     /////////// update LHT ////////////////////
     LHT_tournament[masked_pc] |= 1 << 0; // set local history last bit to 1
     ghr32_tournament |= 1 << 0; // set global history last bit to 1
-    
+
   } else { // NOTTAKEN
-    if (choice_prediction <= 1) { // update global
-      if (globel_prediction == 0) { // predict correct, decrease choice table
-        GPT_tournament[masked_ghr] = 0;
-        decrease_local_prediction(masked_LPT_index);
+    decrease_local_prediction(masked_LPT_index);
+    decrease_global_prediction(masked_ghr);
 
-        if (choice_prediction == 0) {
-          CPT_tournament[masked_ghr] = 0;
-        } else if (choice_prediction == 1) {
-          CPT_tournament[masked_ghr] = 0;
-        } else {
-          printf("I am here, sth is wrong in choice prediction value\n");
-        }
-      } else if (globel_prediction == 1) { // predict correct, decrease choice table
-        GPT_tournament[masked_ghr] = 0;
-        decrease_local_prediction(masked_LPT_index);
-
-        if (choice_prediction == 0) {
-          CPT_tournament[masked_ghr] = 0;
-        } else if (choice_prediction == 1) {
-          CPT_tournament[masked_ghr] = 0;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
-        }
-      } else if (globel_prediction == 2) { // predict wrong, increase choice table
-        GPT_tournament[masked_ghr] = 1;
-        decrease_local_prediction(masked_LPT_index);
-
-        if (choice_prediction == 0) {
-          CPT_tournament[masked_ghr] = 1;
-        } else if (choice_prediction == 1) {
-          CPT_tournament[masked_ghr] = 2;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
-        }
-      } else if (globel_prediction == 3) { // predict wrong. increase choice table
-        GPT_tournament[masked_ghr] = 2;
-        decrease_local_prediction(masked_LPT_index);
-
-        if (choice_prediction == 0) {
-          CPT_tournament[masked_ghr] = 1;
-        } else if (choice_prediction == 1) {
-          CPT_tournament[masked_ghr] = 2;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
+    if (choice_prediction < 2) { // predict global
+      if (globel_prediction < 2) { // predict right
+        if (local_prediction > 2) {
+          decrease_choice_prediction(masked_ghr);
         }
       } else {
-        printf("sth is wrong with globel_prediction value\n");
+        if (local_prediction < 2) {
+          increase_choice_prediction(masked_ghr);
+        }
       }
-    } else if (choice_prediction > 1) { // update local
-      //////////// update LPT //////////////
-      if (local_prediction == 0) { // predict right, increase choice table
-        LPT_tournament[masked_LPT_index] = 0;
-        decrease_global_prediction(masked_ghr);
-
-        if (choice_prediction == 2) {
-          CPT_tournament[masked_ghr] = 3;
-        } else if (choice_prediction == 3) {
-          CPT_tournament[masked_ghr] = 3;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
-        }
-      } else if (local_prediction == 1) { // predict right, increase choice table
-        LPT_tournament[masked_LPT_index] = 0;
-        decrease_global_prediction(masked_ghr);
-
-        if (choice_prediction == 2) {
-          CPT_tournament[masked_ghr] = 3;
-        } else if (choice_prediction == 3) {
-          CPT_tournament[masked_ghr] = 3;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
-        }
-      } else if (local_prediction == 2) { // predict wrong, decrease choice table
-        LPT_tournament[masked_LPT_index] = 1;
-        decrease_global_prediction(masked_ghr);
-
-        if (choice_prediction == 2) {
-          CPT_tournament[masked_ghr] = 1;
-        } else if (choice_prediction == 3) {
-          CPT_tournament[masked_ghr] = 2;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
-        }
-      } else if (local_prediction == 3) { // predict wrong, decrease choice table
-        LPT_tournament[masked_LPT_index] = 2;
-        decrease_global_prediction(masked_ghr);
-
-        if (choice_prediction == 2) {
-          CPT_tournament[masked_ghr] = 1;
-        } else if (choice_prediction == 3) {
-          CPT_tournament[masked_ghr] = 2;
-        } else {
-          printf("sth is wrong in choice prediction value\n");
+    } else { // predict local
+      if (local_prediction < 2) { // predict right
+        if (globel_prediction > 2) {
+          increase_choice_prediction(masked_ghr);
         }
       } else {
-        printf("sth is wrong with local_prediction value\n");
+        if (globel_prediction < 2) {
+          decrease_choice_prediction(masked_ghr);
+        }
       }
-    } else { //
-      printf("sth is wrong with choice_prediction value\n");
     }
+
     /////////// update LHT ////////////////////
     LHT_tournament[masked_pc] &= ~(1 << 0); // set local history last bit to 0
-
     ghr32_tournament &= ~(1 << 0); // set global history last bit to 0
   }
 }
 
-void  train_predictor_CUSTOM(uint32_t pc, uint8_t outcome) {
+void train_predictor_CUSTOM(uint32_t pc, uint8_t outcome) {
 
 }
 
