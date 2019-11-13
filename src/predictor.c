@@ -6,7 +6,6 @@
 //  described in the README                               //
 //========================================================//
 #include <stdio.h>
-#include <math.h>
 #include <string.h>
 #include <assert.h>
 #include "predictor.h"
@@ -90,7 +89,7 @@ int LPT_bi_length;
 //
 void GSHARE_init() {
   // init BHT
-  BHT_gshare_length = (int) pow((double)2, (double)ghistoryBits);
+  BHT_gshare_length = 2 << ghistoryBits;
   BHT_gshare = malloc(sizeof(uint8_t) * BHT_gshare_length);
   memset(BHT_gshare, 1, sizeof(uint8_t) * BHT_gshare_length);
 
@@ -99,9 +98,9 @@ void GSHARE_init() {
 }
 
 void TOURNAMENT_init() {
-  LHT_tournament_length = (int) pow((double)2, (double)pcIndexBits);
-  LPT_tournament_length = (int) pow((double)2, (double)lhistoryBits);
-  GPT_tournament_length = (int) pow((double)2, (double)ghistoryBits);
+  LHT_tournament_length = 2 << pcIndexBits;
+  LPT_tournament_length = 2 << lhistoryBits;
+  GPT_tournament_length = 2 << ghistoryBits;
 
   LHT_tournament = malloc(sizeof(uint32_t) * LHT_tournament_length);
   LPT_tournament = malloc(sizeof(uint8_t) * LPT_tournament_length);
@@ -117,9 +116,9 @@ void TOURNAMENT_init() {
 }
 
 void CUSTOM_init() {
-  LHT_bi_length = (int) pow((double)2, (double)pcIndexBits_bi);
-  LPT_bi_length = (int) pow((double)2, (double)lhistoryBits_bi);
-  GPT_bi_length = (int) pow((double)2, (double)ghistoryBits_bi);
+  LHT_bi_length = 2 << pcIndexBits_bi;
+  LPT_bi_length = 2 << lhistoryBits_bi;
+  GPT_bi_length = 2 << ghistoryBits_bi;
 
   LHT_bi = malloc(sizeof(uint32_t) * LHT_bi_length);
   LPT_bi = malloc(sizeof(uint8_t) * LPT_bi_length);
